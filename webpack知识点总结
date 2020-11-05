@@ -1,0 +1,338 @@
+webpack:
+    开源的js模块打包工具，解决模块之间的依赖，把各个模块按照特定的规则和顺序组织在一起，最终合并成js文件。
+
+js模块：
+    由于最初js定位是小型语言，所有没有模块。这引发很多缺点：
+        1.需手动维护js的加载顺序。（js之间的依赖关系）
+        2.每一个script都是意味着需要向服务器请求一次资源，过多请求造成网页渲染速度慢
+        3.在script标签中，顶层作用域就是全局作用域，易造成全局污染。
+
+    模块化优势：
+        1.导入导出可清晰看到模块之间的依赖关系
+        2.模块借助工具打包，页面只需要加载合并后的资源文件，减少网络开销
+        3.多个模块之间作用域是隔离的，不会命名冲突
+
+模块打包工具：webpack、parcel、rollup等
+
+webpack模块打包优势：
+    1.支持多种模块标准，AMD、CommonJS、ES6模块
+    2.有完备的代码分割解决方案，可减小资源体积，提升首页渲染速度
+    3.可以处理各种类型资源，如js、样式、模板、图片等
+    4.有庞大的社区支持
+
+AMD:异步模块。加载模块的方式是异步的。
+    使用define定义模块，使用require函数加载模块
+    缺点：语法冗长，易造成回调地狱，显示不够清晰
+    优点：非阻塞性
+
+UMD：通用模块标准，使一个模块能运行在各种环境下，无聊时commonjs、AMD，还是非模块化的环境
+
+npm包管理器：在其他平台找到由他人所开发和发布的库，并安装到项目中。
+    通过import导入一个模块时，实际运行过程是：每一个模块都有一个入口，加载一个模块，实际上就是加载该模块的入口文件。这个入口被维护在模块内部的package.json文件的main字段中。
+
+
+mode: 指定打包模式，分为development、production、none，会自定添加适合当前模式的一系列配置，减少人为工作量
+
+使用npm scripts
+    在package.json中添加脚本命令
+    scripts是npm提供的脚本命令功能
+    npm scripts底层实现原理是通过调用shell去运行脚本命令。因为webpack只是打包模块化代码的工具，并没有提供任何任务管理功能，而npm scripts能把一连串复杂的流程简化成一个简单的命令。
+
+
+模块打包
+    CommonJS:最初只为服务端而设计，知道有了browserify ——— 一个运行在node.js环境下的模块打包工具，它可以将commonjs模块打包为浏览器可以运行的单个文件，从而在前端开发流行。
+
+    CommonJS中每个文件是一个模块，声明的变量和函数只属于模块自身的作用域，对外不可见。
+    导出：是模块向外暴露自身的唯一方式，通过module.exports
+    CommonJS都有一个module对象用于存放当前模块的信息
+    导入：通过require进行模块导入。require函数接收表达式，所以可以动态指定模块加载路径
+    导入模块分2种情况：
+        1.require的模块是第一次被加载，这时会首先执行该模块，然后导出内容；
+        2.require的模块曾被加载过，这时该模块的代码不会再次被执行，而是直接导出上次执行的结果
+
+    ES6 Module
+        ES6也是将每个文件作为一个模块，每个模块有自身作用域，会自动采用严格模式
+    
+    CommonJS与ES6 Module的区别：
+        1.动态与静态：CommonJS模块依赖关系建立在代码运行阶段；ES6Module模块依赖关系建立在代码编译阶段
+          ES6 Module优势：
+            1.死代码检测和排除。使用静态分析工具检测出哪些模块没有调用过，在打包的时候去除这些没有使用的模块，减小打包体积
+            2.模块变量类型检查。有助于确保模块之间传递的值或接口类型是正确的；
+            3.编译优化。commonjs导入的是同一个对象，而module直接导入变量，减少引用层级，程序效率高
+        2.值拷贝和动态映射：导入一个模块时，对于commonjs来说是一份导出值得拷贝，而es6的module中则是值得动态映射，且这个映射是只读的，es6的module不能对导入的变量进行更改
+
+    AMD、CMD、CommonJs是ES5中提供的模块化编程的方案
+        CommonJs用在服务器端，AMD和CMD用在浏览器环境
+        AMD-异步模块定义
+        CMD---是一个同步模块定义
+        CommonJS规范---是通过module.exports定义的，在前端浏览器里面并不支持module.exports,通过node.js后端使用的。Nodejs端是使用CommonJS规范的，前端浏览器一般使用AMD、CMD、ES6等定义模块化开发的
+
+浏览器加载bundle过程：
+    1.在最外层匿名函数中会初始化浏览器执行环境，为模块的加载和执行做一些准备；
+    2.加载入口模块，每个bundle都有一个入口模块，在浏览器中会从它开始执行；
+    3.执行模块代码。如果执行到了module.exports则记录下模块的导出值；如果中间遇到require函数，则暂时交出执行权，进入_webpack_require_函数体内进行加载其他模块的逻辑；
+    4.在_webpack_require_函数中会判断即将加载的模块是否存在与installedModules中，如果存在则直接取值，否则回到第3步，执行模块代码来获取导出的值；
+    5.所有依赖模块都已执行完毕，最后执行权又回到入口模块。当入口代码执行到结尾，标识bundle执行结束。
+
+
+
+
+    代码分片:有效减小资源体积，更好的利用缓存，给用户更友好的体验。
+    1、提取vendor。(webpack 使用vendor来命名项目中使用的第三方库)
+        原因：当工程产生一个js文件且体积很大，当代码更新，用户都要重新下载整个资源文件，对页面性能不友好。
+        操作：1）CommonsChunkPlugin
+              1.使用CommonsChunkPlugin提取多入口之间的公共模块
+              2.单入口应用中，提取第三方类库及业务中不常更新的模块
+                entry: {
+                    app: ['babel-polyfill','./src/main.js'],
+                    vendor:['vue','element-ui'],
+                    vueRouter:'./src/router/index.js',
+                    commonJs:'./src/components/common.js',
+                    busJs:'./src/components/bus.js',
+                },
+                output: {
+                    path: config.build.assetsRoot,
+                    filename: '[name].js',
+                    publicPath: process.env.NODE_ENV === 'production'
+                    ? config.build.assetsPublicPath
+                    : config.dev.assetsPublicPath
+                },
+                plugins:[
+                    new webpack.optimize.CommonsChunkPlugin({ // 提取第三方类库及业务中不常更新的模块
+                    name: 'vendor',
+                    filename: 'vendor.js',
+                    minChunks: 3 // 设置提取规则
+                    }),
+                    new webpack.optimize.CommonsChunkPlugin({
+                    name: 'commons',
+                    filename: 'commons.js',
+                    chunks: ['vueRouter','commonJs','busJs'] // 设置提取范围
+                    })
+                ],
+                CommonsChunkPlugin缺点：
+                    1.一个CommonsChunkPlugin只能提取一个vendor，想提取多个vendor需要配置多个插件，代码重复
+                    2.添加了manifest，提取webpack运行时，使浏览器多加载一个资源，页面渲染不友好
+                    只修改业务代码，不改动库代码时，打包出的库的代码的chunkhash也发生变化，导致长效缓存机制失效
+                    解决：将webpack的runtime单独提取出来。
+                    entry: {
+                        app: "./app.js",
+                        vendor: ["lodash","jquery"],
+                    },
+                    output: {
+                        path: 'release',
+                        filename: "[name].[chunkhash].js"
+                    },
+                    plugins: [
+                        new webpack.optimize.CommonsChunkPlugin({names: ['vendor','runtime']}),
+                    ]
+
+                    3.会破坏chunk中模块的依赖关系，如异步模块下
+                    
+                
+                runtime：在浏览器运行时，webpack用来连接模块化的应用程序的所有代码。runtime包含，在模块交互时，连接模块所需的加载和解析逻辑。包括浏览器中的已加载模块的连接，以及懒加载模块的执行逻辑。
+             2） optimization.SplitChunks
+                webpack4提供的代码分片插件。功能强大且简单易用。
+                mode: 'development',  // 针对当前开发环境还是生成环境自动添加对应的一些webpack配置
+                optimization: {
+                    SplitChunks:{
+                        chunks: 'all' // SplitChunks将会对所有的chunks生效(默认情况下，只对异步chunks生效，且不需配置)
+                    }
+                }
+    2、缩小babel-loader的范围：通过设置exclude排除node_module，加快打包速度
+       添加babel-loader的cacheDirectory配置项，启动缓存机制，防止未改变的模块二次编译
+       @babel/preset-env会将es6 module转化成commonjs，导致webpack的tree-shaking特性失效。可以将@babel-preset-env的module配置项设置为false禁用模块语言的转化。
+            
+
+
+预处理器loader：可以让webpack处理不同资源类型的能力，更加直观的维护模块之间的关系.
+    支持链式操作：链式loader在webpack打包时从后往前将资源交给loader处理，最后生效的loader要放在最前面
+    {
+        test:'/\.css$/',
+        use:['style-loader','css-loader']
+    }
+
+    因为webpack只认识js，所有需通过一个或多个loader对其进行转译。
+    output = loader(input)
+
+loader种类：
+    css-loader: 处理css的各种加载语法(@import和url()函数等)
+    style-loader：将样式插入页面，使css样式生效。将样式字符串包装成style标签插入页面。
+    sass-loader：将scss语法编译成css
+    less-loader: 将less语法编译成css
+    html-loader：将html文件转化为字符串并进行格式化，通过document.write插入到页面中。使通过js加载html片段。
+    handlebars-loader:处理handlerbars模板
+    babel-loader：处理es6+语言为es5，以兼容不同平台
+    ts-loader: 处理typescript
+    file-loader：打包文件类型资源，并返回publicPath，如图片资源使用file-loader就可以在js中加载图片
+    url-loader: 与file-loader作用类型，区别是可以设置文件大小的阈值，小于阈值返回文件base64形式编码注入到js或css中，减少资源加载次数。
+    vue-loader：处理vue组件，将组件模板、js和样式拆分，通过vue-template-compiler编译模板
+
+    postcss: 用js工具和插件转换css代码的工具
+
+loader配置：
+    exclude:被正则匹配的模块被排除在外
+    include：只对正则匹配的模块生效
+    resource：被加载的模块  //精确确定模块规则的作用范围
+    issuer：加载者         //精确确定模块规则的作用范围
+    enforce：强制指定loader的作用顺序，其值有pre、inline(官方不推荐使用)、nomal、post
+        pre: 将在所有正常loader之前执行，保证检测代码没有被其他loader更改过
+        post：在所有loader之后执行
+
+source-map：便于在浏览器控制台查看源码，最终生成.map文件。将编译、打包、压缩后的代码映射回源码的过程，便于追查线上生成环境问题。在devtool配置source-map外，还可以根据需求选择cheap-source-map、eval-source-map等
+
+样式处理:
+    原因：希望样式存在于css文件而不是style标签，因为这样有利于客户端缓存
+    解决：通过extract-text-webpack-plugin(webpack4之前版本) 或 mini-css-extract-plugin(webpack4+)插件，将样式提取到css文件
+    mini-css-extract-plugin优势：支持按需加载css
+
+
+bundle 体积监控：
+    vs code插件import cost可以对引入的模块的大小进行监测
+    webpack-bundle-analyzer工具，帮助分析bundle的构成
+
+
+webpack打包优化：
+    1.HappyPack多线程打包
+        适用于转译任务比较重的工程，如ts-loader、babel-loader，对sass-loader和less-loader效果不明显
+        优化多个loader时配置一个id
+        打包原理：把任务分解给多个子进程去并发执行，子进程处理完后再把结果发给主进程。
+    2.缩小打包作用域
+        1、通过配置include、exclude(优先级高于include)
+        2、配置noParse过滤不需要解析的文件，提高打包效率，如jquery，但是仍会打包到bundle中
+        3.IgnorePlugin完全排除某些模块，即便引用也不会打包进资源文件中，用于处理一些类库没有引用的资源
+        4.有些loader可以配置cache设置缓存，但是不能检测过期日期
+
+    3.DllPlugin
+        与代码分片有些类似，都是提取公共模块。
+        代码分片：设置规则并在打包过程中根据规则提取模块
+        DllPlugin：将vendor完全拆出来，通过webpack配置独立打包，实际工程构建时不再处理，直接取用
+        先使用DllPlugin给静态资源打包，再使用DllReferencePlugin让源文件引用资源文件
+
+        步骤：参考链接https://www.jianshu.com/p/9c7815024bf5
+        1) 在build文件夹下建立webpack.dll.conf.js文件
+        const path = require('path');
+        const webpack = require('webpack');
+        module.exports = {
+            entry: {
+                vendor:['vue/dist/vue.esm.js','vue-router','axios','element-ui'],
+            }, // 第三方库
+            output: {
+                path: path.join(__dirname,'../static/js'),
+                filename: '[name].dll.js',
+                library: '[name]_library'
+            },
+            plugins:[
+                new webpack.DllPlugin({
+                name: '[name]_library',
+                path: path.join(__dirname,'[name]-manifest.json'),
+                context: __dirname
+                }),
+                // 压缩打包文件
+                new webpack.optimize.UglifyJsPlugin({
+                compress:{
+                    warnings: false
+                }
+                })
+            ]
+        }
+        2) 在webpack.base.conf.js文件中
+        plugins:[
+            new webpack.DllReferencePlugin({
+            context:__dirname,
+            manifest: require('./vendor-manifest.json'),
+            })
+        ],
+
+        3) 在package.json文件中添加命令
+        "vuedll":"webpack --config build/webpack.dll.conf.js"
+        4) 使用npm run vuedll打包
+        5) 在index.html文件中引入<script src="./static/js/vendor.dll.js"></script>
+    4、tree shaking
+        检测过程中没有使用到的模块，在资源压缩时从bundle中去除。
+        npm包提供commonjs和es6 module两种形式导出，而tree shaking只在es6形式下起作用。因为es6的依赖关系构建是在编译时，而不是运行时。
+        如果用到了babel-loader，webpack会转化成commonjs形式的模块，不能进行tree-shaking，可以配置禁用
+        在presets:[
+            [@babel/preset-env,{module:false}]
+        ]
+        这样可以使用tree shaking标记代码，然后通过压缩工具来去除死代码terser-webpack-plugin，在webpack4中将mode设置为production也可以达到效果
+    5、webpack启动自动刷新时(源文件变化时，自动重新构建新的输出文件)，通过watchOptions配置缩小需要监听的文件范围
+          watchOptions: {
+            // 不监听的文件或文件夹，支持正则匹配
+            // 默认为空
+            ignored: /node_modules/,
+            // 监听到变化发生后会等300ms再去执行动作，防止文件更新太快导致重新编译频率太高
+            // 默认为 300ms
+            aggregateTimeout: 300,
+            // 判断文件是否发生变化是通过不停的去询问系统指定文件有没有变化实现的
+            // 默认每隔1000毫秒询问一次
+            poll: 1000
+        }
+    6、开启模块热替换
+        devserver支持模块热替换技术，在不刷新整个页面的情况下实时预览。原理：当一个源码发生变化时，只重新编译发生变化的模块，再用心输出的模块替换掉浏览器中对应的老模块
+    
+    7、使用cdn加速
+        通过publicpath参数设置存放静态资源的cdn目录url。
+        由于cdn服务一般会给资源开启很长时间的缓存，导致index.html文件即使被重新覆盖，但是还是运行之前的版本。解决办法：将index.html部署在自己的服务器上，将static中的文件部署在cdn上，且文件名使用hash值。这样内容改变后，文件名也会改变。
+
+
+代码检查：
+    1.检查代码分割：如代码缩进，代码注释
+    2.潜在问题：分析出代码在运行过程中可能出现的潜在bug
+1、检查js
+    检查工具：eslint
+2、检查ts
+    检查工具TSLint
+3、检查css
+    检查工具stylelint
+
+加载图片：
+    webpack在加载图片资源时，分为两种方式：
+
+    1) file-loader 会把js和css中导入图片的语句替换成正确的地址，并同时把文件输出到对应的位置
+        如：css文件源码：
+        #app {
+            background-image: url(./imgs/a.png);
+        }
+        被file-loader转换输出的css
+        #app {
+            background-image: url(5556e1251a78c5afda9ee7dd06ad109b.png);
+        }
+        同时在dist中./imgs/a.png文件中多出5556e1251a78c5afda9ee7dd06ad109b.png
+    2) url-loader 把文件的内容经过base64编码后注入到js或css中
+        如：#app {
+                background-image: url(./imgs/a.png);
+            }
+            经过url-loader后
+            #app {
+                background-image: url(data:image/png;base64,iVBORw01afer...); /* 结尾省略了剩下的 base64 编码后的数据 */
+            }
+    url-loader将小图片资源注入到代码中，减少加载次数。因为每加载一个资源都要建立一次http连接。
+    可以通过 imagemin-webpack-plugin 压缩图片来优化图片的加载
+
+webpack文件监听原理(devserver)
+    定时的去获取这个文件的最后编辑时间，每次都存下最新的最后编辑时间，如果发现当前获取的和最后一次保存的最后编辑时间不一致，就认为这个文件发生变化。当发现文件发生了变化，不会立刻告诉监听者，而是先缓存起来，收集一段时间的变化后，再一次性告诉监听者，watchOptions.aggregateTimeout就是配置这个等待时间的。
+    webpack会从配置的entry文件出发，递归解析出entry依赖的文件，把这些依赖都加入到监听列表中
+
+webpack 流程概况
+    1、初始化参数
+        从配置文件和shell语句中读取与合并参数，得出最终的参数；
+
+    2、开始编译
+        用上一步得到的参数初始化compiler对象，加载所有的配置插件，执行对象的run方法开始执行编译；
+
+    3、确定入口
+        根据配置中的entry找出所有的入口文件；
+
+    4、编译模块
+        从入口文件出发，调用所有配置的loader对模块进行翻译，再找出该模块依赖的模块。再递归此步骤直到所有入口依赖的文件都经过本步骤的处理；
+
+    5、完成模块编译
+        翻译完所有模块后，得到每个模块被翻译后的最终内容及他们之间的依赖关系
+
+    6、输出资源
+        根据入口和模块之间的依赖的关系，组装成chunk，再把每个chunk转换成一个单独的文件加入到输出列表
+
+    7、输出完成
+        根据配置，确定输出路径和文件名，把文件内容写入到文件系统。
+
+
